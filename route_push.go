@@ -90,6 +90,11 @@ func routeDoPushV2(c *fiber.Ctx) error {
 		params[strings.ToLower(string(key))] = string(value)
 	})
 
+	// Convert Slack message if slack=true is set
+	if slackParam := c.Query("slack"); slackParam == "true" {
+		params = convertSlackMessage(params)
+	}
+
 	var deviceKeys []string
 	// Get the device_keys array from params
 	if keys, ok := params["device_keys"]; ok {
@@ -155,6 +160,28 @@ func routeDoPushV2(c *fiber.Ctx) error {
 		wg.Wait()
 		return c.JSON(data(result))
 	}
+}
+
+func convertSlackMessage(params map[string]interface{}) map[string]interface{} {
+
+
+if attachments, ok := params["attachments"].([]interface{}); ok && len(attachments) > 0 {
+	if attachment, ok := attachments[0].(map[string]interface{}); ok {
+		if title, ok := attachment["title"].(string); ok {
+			params["title"] = title
+		}
+		if text, ok := attachment["text"].(string); ok {
+			params["body"] = text
+		}
+		if titleLink, ok := attachment["title_link"].(string); ok {
+			params["url"] = titleLink
+		}
+	}
+}
+
+delete(params, "username")
+delete(params, "attachments")
+return params	
 }
 
 func push(c *fiber.Ctx, params map[string]interface{}) (int, error) {
